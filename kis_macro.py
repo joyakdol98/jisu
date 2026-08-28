@@ -49,7 +49,7 @@ TR_ID_HOLIDAY = "CTCA0903R"
 
 # KIS는 계정별 초당 거래건수 제한이 있어(EGW00201/EGW00215) 모든 호출 사이에
 # 최소 간격을 강제하고, 레이트리밋 에러 시 자동 재시도한다.
-MIN_API_INTERVAL = 0.5  # 초
+MIN_API_INTERVAL = 1.0  # 초
 RATE_LIMIT_MSG_CODES = {"EGW00201", "EGW00215"}
 _last_api_call_at = [0.0]
 
