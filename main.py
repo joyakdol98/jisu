@@ -174,7 +174,13 @@ def format_currency(value):
 
 
 def fetch_previous_close_price_for_symbol(symbol):
-    """ 📊 [일봉 분석] 특정 종목의 어제 종가 및 어제의 전일대비 하락 여부 산출 """
+    """
+    📊 [일봉 분석] "2일 연속 하락" 룰 판단을 위한 어제 자체의 등락 여부 산출
+
+    KIS inquire-price는 오늘 대비 어제(전일대비율)만 제공하고 어제 대비 그제는 알려주지 않으므로,
+    이 값만큼은 일봉(D-1, D-2 종가) 조회로 계산한다. 어제종가/오늘 변동률은
+    get_multiple_stock_prices()가 inquire-price 응답값을 그대로 사용하므로 여기서 다시 쓰지 않는다.
+    """
     global access_token, stock_status
 
     for attempt in range(2):
@@ -255,7 +261,12 @@ def fetch_all_previous_close_prices():
 
 
 def get_multiple_stock_prices():
-    """ 🎯 감시 리스트 전체 종목의 실시간 시세 및 변동률 일괄 수신 (KIS는 단건 조회만 지원하여 순차 호출) """
+    """
+    🎯 감시 리스트 전체 종목의 실시간 시세 및 변동률 일괄 수신 (KIS는 단건 조회만 지원하여 순차 호출)
+
+    KIS inquire-price 응답에 전일종가(stck_prdy_clpr)·전일대비율(prdy_ctrt)이 이미 포함되어 있어
+    캔들로 직접 등락률을 계산할 필요 없이 API 값을 그대로 사용한다.
+    """
     global access_token, stock_status
     if not access_token and not fetch_access_token():
         raise Exception("Access Token 발급 실패로 실시간 시세를 조회할 수 없습니다.")
@@ -284,21 +295,18 @@ def get_multiple_stock_prices():
 
         last_price_raw = output.get("stck_prpr", "0")
         stock_name = output.get("hts_kor_isnm", symbol)
+        prdy_ctrt_raw = output.get("prdy_ctrt", "0")
+        prdy_clpr_raw = output.get("stck_prdy_clpr", "0")
 
         try:
             current_p = float(last_price_raw)
             stock_status[symbol]["current_price"] = current_p
-            prev_p = stock_status.get(symbol, {}).get("prev_close")
 
-            if prev_p is None or prev_p == 0:
-                prev_p = current_p
-                stock_status[symbol]["prev_close"] = current_p
+            prdy_close = float(prdy_clpr_raw)
+            if prdy_close > 0:
+                stock_status[symbol]["prev_close"] = prdy_close
 
-            if current_p > 0 and prev_p > 0:
-                calc_rate = ((current_p - prev_p) / prev_p) * 100
-                change_rate_str = f"{calc_rate:.2f}"
-            else:
-                change_rate_str = "0.0"
+            change_rate_str = f"{float(prdy_ctrt_raw):.2f}"
         except ValueError:
             change_rate_str = "0.0"
 
