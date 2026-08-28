@@ -490,7 +490,11 @@ def display_asset_dashboard():
 
 
 def check_market_status():
-    """ [KIS OpenAPI] GET /uapi/domestic-stock/v1/quotations/chk-holiday """
+    """
+    [KIS OpenAPI] GET /uapi/domestic-stock/v1/quotations/chk-holiday
+
+    반환값: True(개장) / False(주말 또는 확정된 휴장일) / None(API 오류로 판단 불가, 재시도 필요)
+    """
     global access_token
 
     now = datetime.datetime.now()
@@ -533,12 +537,12 @@ def check_market_status():
                 print(f"🔒 [{today_str}] 휴장일입니다. (opnd_yn: {today_data.get('opnd_yn') if today_data else 'N/A'})")
                 return False
 
-        print(f"⚠️ [KIS API] chk-holiday 응답 에러 (HTTP {response.status_code})")
-        return False
+        print(f"⚠️ [KIS API] chk-holiday 응답 에러 (HTTP {response.status_code}): {response.text}")
+        return None
 
     except Exception as e:
         print(f"⚠️ [KIS API] chk-holiday 통신 오류: {e}")
-        return False
+        return None
 
 
 def send_kis_limit_order(stock_code, side, quantity, current_price):
@@ -633,7 +637,14 @@ if __name__ == "__main__":
         if date_checked != today_str:
             if now.hour >= 8:
                 print(f"\n🔍 [날짜 변경 감지] {today_str} 오늘 개장 여부 확인")
-                is_market_open_today = check_market_status()
+                market_result = check_market_status()
+
+                if market_result is None:
+                    print("⚠️ 개장 여부 확인 실패(API 오류). 30초 후 재시도합니다.")
+                    time.sleep(30)
+                    continue
+
+                is_market_open_today = market_result
                 if is_market_open_today:
                     print("🔓 오늘은 정규장 개장일. 자동매매 스케줄 가동")
                     fetch_all_previous_close_prices()
