@@ -47,6 +47,42 @@ TR_ID_PRICE = "FHKST01010100"
 TR_ID_DAILY_CHART = "FHKST03010100"
 TR_ID_HOLIDAY = "CTCA0903R"
 
+# KIS는 계정별 초당 거래건수 제한이 있어(EGW00201/EGW00215) 모든 호출 사이에
+# 최소 간격을 강제하고, 레이트리밋 에러 시 자동 재시도한다.
+MIN_API_INTERVAL = 0.5  # 초
+RATE_LIMIT_MSG_CODES = {"EGW00201", "EGW00215"}
+_last_api_call_at = [0.0]
+
+
+def kis_request(method, url, **kwargs):
+    """ 공통 요청 함수: 호출 간격 강제 + 초당거래건수초과(EGW00201/EGW00215) 자동 재시도 """
+    max_retries = 3
+    backoff = 1.0
+
+    for attempt in range(max_retries + 1):
+        elapsed = time.time() - _last_api_call_at[0]
+        if elapsed < MIN_API_INTERVAL:
+            time.sleep(MIN_API_INTERVAL - elapsed)
+
+        response = requests.request(method, url, **kwargs)
+        _last_api_call_at[0] = time.time()
+
+        if response.status_code == 500:
+            try:
+                msg_cd = response.json().get("msg_cd")
+            except Exception:
+                msg_cd = None
+
+            if msg_cd in RATE_LIMIT_MSG_CODES and attempt < max_retries:
+                print(f"⏳ [속도제한] {msg_cd} 감지, {backoff:.1f}초 후 재시도 ({attempt + 1}/{max_retries})")
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+
+        return response
+
+    return response
+
 
 def parse_target_args(raw_args):
     """
@@ -135,7 +171,7 @@ def fetch_access_token():
         "appsecret": APP_SECRET
     }
     try:
-        response = requests.post(url, json=payload, timeout=5)
+        response = kis_request("POST", url, json=payload, timeout=5)
         if response.status_code == 200:
             access_token = response.json().get("access_token")
             return True
@@ -155,7 +191,7 @@ def issue_hashkey(body):
         "appsecret": APP_SECRET
     }
     try:
-        response = requests.post(url, json=body, headers=headers, timeout=5)
+        response = kis_request("POST", url, json=body, headers=headers, timeout=5)
         if response.status_code == 200:
             return response.json().get("HASH")
         print(f"⚠️ [해시키 발급 실패] HTTP {response.status_code}: {response.text}")
@@ -210,7 +246,7 @@ def fetch_previous_close_price_for_symbol(symbol):
         }
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=5)
+            response = kis_request("GET", url, headers=headers, params=params, timeout=5)
             if response.status_code == 200:
                 res_json = response.json()
                 candles = res_json.get("output2", [])
@@ -286,7 +322,7 @@ def get_multiple_stock_prices():
             "FID_COND_MRKT_DIV_CODE": "J",
             "FID_INPUT_ISCD": symbol
         }
-        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response = kis_request("GET", url, headers=headers, params=params, timeout=5)
         if response.status_code != 200:
             raise Exception(f"[{symbol}] 시세 조회 API 실패 (HTTP {response.status_code}): {response.text}")
 
@@ -397,7 +433,7 @@ def display_asset_dashboard():
             "CTX_AREA_FK100": "",
             "CTX_AREA_NK100": ""
         }
-        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response = kis_request("GET", url, headers=headers, params=params, timeout=5)
 
         if response.status_code != 200:
             print(f"❌ [API 오류] 잔고 조회 실패 (HTTP {response.status_code}): {response.text}")
@@ -522,7 +558,7 @@ def check_market_status():
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=5)
+        response = kis_request("GET", url, headers=headers, params=params, timeout=5)
         if response.status_code == 200:
             res_json = response.json()
             output = res_json.get("output", []) or []
@@ -594,7 +630,7 @@ def send_kis_limit_order(stock_code, side, quantity, current_price):
 
     try:
         print(f"📡 [{stock_code} 지정가 주문 전송] 현재가: {format_currency(current_price)}원 -> 주문가: {format_currency(target_limit_price)}원 | 수량: {quantity}주 ({side_label})")
-        response = requests.post(url, json=body, headers=headers, timeout=5)
+        response = kis_request("POST", url, json=body, headers=headers, timeout=5)
         res_data = response.json() if response.content else {}
 
         if response.status_code == 200 and res_data.get("rt_cd") == "0":
