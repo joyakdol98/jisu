@@ -660,7 +660,7 @@ if __name__ == "__main__":
     else:
         print("❌ [인증 실패] APP KEY 또는 APP SECRET을 확인하세요.")
 
-    print("\n🤖 스케줄러 루프작동 (09:00~15:40 10분간격 자동조회)")
+    print("\n🤖 스케줄러 루프작동 (09:01~15:41 10분간격 자동조회)")
 
     last_dashboard_check = None
 
@@ -694,7 +694,7 @@ if __name__ == "__main__":
             continue
 
         # ─── 09:00 ~ 15:40 10분 간격 자동 조회 ───
-        if (9, 0) <= current_hm <= (15, 40):
+        if (9, 1) <= current_hm <= (15, 41):
             current_time_str = now.strftime("%H:%M")
             if now.minute % 10 == 0 and last_dashboard_check != current_time_str:
                 display_asset_dashboard()
