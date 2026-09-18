@@ -368,10 +368,10 @@ def calculate_expected_order(symbol, raw_change_str, current_price_raw):
 
         if raw_change > 0:
             base_n = math.floor(abs(raw_change))
-            n = base_n * multiplier
+            final_qty = (base_n + 1) * multiplier
             target_price = adjust_price_to_tick_size(curr_price * 0.95, side="SELL")  # 매도: -5%
-            return (f"매도(SELL) {n + 1}주 {format_currency(target_price)}원 (-5% 지정가)\n"
-                    f"      └ [사유] 오늘 +{raw_change:.2f}% -> 기본n={base_n} * 배수({multiplier}) = n={n} -> n+1주")
+            return (f"매도(SELL) {final_qty}주 {format_currency(target_price)}원 (-5% 지정가)\n"
+                    f"      └ [사유] 오늘 +{raw_change:.2f}% -> 기본n={base_n} -> (n+1)*배수({multiplier}) = {final_qty}주")
 
         elif raw_change < 0:
             today_drop = abs(raw_change)
@@ -382,14 +382,14 @@ def calculate_expected_order(symbol, raw_change_str, current_price_raw):
             if is_y_down:
                 total_drop = y_drop_rate + today_drop
                 base_n = math.floor(total_drop)
-                n = base_n * multiplier
-                return (f"매수(BUY) {n + 2}주 {format_currency(target_price)}원 (+5% 지정가) [2일연속하락]\n"
-                        f"      └ [사유] 어제-{y_drop_rate:.2f}% + 오늘-{today_drop:.2f}% = 총-{total_drop:.2f}% -> 기본n={base_n} * 배수({multiplier}) = n={n} -> n+2주")
+                final_qty = (base_n + 2) * multiplier
+                return (f"매수(BUY) {final_qty}주 {format_currency(target_price)}원 (+5% 지정가) [2일연속하락]\n"
+                        f"      └ [사유] 어제-{y_drop_rate:.2f}% + 오늘-{today_drop:.2f}% = 총-{total_drop:.2f}% -> 기본n={base_n} -> (n+2)*배수({multiplier}) = {final_qty}주")
             else:
                 base_n = math.floor(today_drop)
-                n = base_n * multiplier
-                return (f"매수(BUY) {n + 2}주 {format_currency(target_price)}원 (+5% 지정가) [단독하락]\n"
-                        f"      └ [사유] 오늘 -{today_drop:.2f}% -> 기본n={base_n} * 배수({multiplier}) = n={n} -> n+2주")
+                final_qty = (base_n + 2) * multiplier
+                return (f"매수(BUY) {final_qty}주 {format_currency(target_price)}원 (+5% 지정가) [단독하락]\n"
+                        f"      └ [사유] 오늘 -{today_drop:.2f}% -> 기본n={base_n} -> (n+2)*배수({multiplier}) = {final_qty}주")
         else:
             return "매매 조건 미충족 (변동률 0%)"
     except Exception:
@@ -726,10 +726,10 @@ if __name__ == "__main__":
                 if raw_change > 0:
                     s_info["order_side"] = "SELL"
                     base_n = math.floor(abs(raw_change))
-                    n = base_n * multiplier
-                    s_info["order_qty"] = n + 1
+                    final_qty = (base_n + 1) * multiplier
+                    s_info["order_qty"] = final_qty
                     target_limit_p = adjust_price_to_tick_size(curr_price_val * 0.95, side="SELL")
-                    print(f"📈 [{symbol}] 상승감지 +{raw_change:.2f}% -> SELL {n+1}주 {format_currency(target_limit_p)}원(-5%)")
+                    print(f"📈 [{symbol}] 상승감지 +{raw_change:.2f}% -> SELL {final_qty}주 {format_currency(target_limit_p)}원(-5%)")
 
                 elif raw_change < 0:
                     s_info["order_side"] = "BUY"
@@ -741,14 +741,14 @@ if __name__ == "__main__":
                     if is_y_down:
                         total_drop = y_drop_rate + today_drop
                         base_n = math.floor(total_drop)
-                        n = base_n * multiplier
-                        print(f"📉 [{symbol}] 이틀연속 하락 (어제 -{y_drop_rate:.2f}% + 오늘 -{today_drop:.2f}% = 합산 -{total_drop:.2f}%) -> BUY {n+2}주 {format_currency(target_limit_p)}원 (+5%)")
+                        final_qty = (base_n + 2) * multiplier
+                        print(f"📉 [{symbol}] 이틀연속 하락 (어제 -{y_drop_rate:.2f}% + 오늘 -{today_drop:.2f}% = 합산 -{total_drop:.2f}%) -> BUY {final_qty}주 {format_currency(target_limit_p)}원 (+5%)")
                     else:
                         base_n = math.floor(today_drop)
-                        n = base_n * multiplier
-                        print(f"📉 [{symbol}] 단독 하락 (-{today_drop:.2f}%) -> BUY {n+2}주 {format_currency(target_limit_p)}원 (+5%)")
+                        final_qty = (base_n + 2) * multiplier
+                        print(f"📉 [{symbol}] 단독 하락 (-{today_drop:.2f}%) -> BUY {final_qty}주 {format_currency(target_limit_p)}원 (+5%)")
 
-                    s_info["order_qty"] = n + 2
+                    s_info["order_qty"] = final_qty
                 else:
                     s_info["order_side"] = None
                     s_info["order_qty"] = 0
