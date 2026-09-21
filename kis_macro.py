@@ -696,7 +696,7 @@ if __name__ == "__main__":
         # ─── 09:00 ~ 15:40 10분 간격 자동 조회 ───
         if (9, 1) <= current_hm <= (15, 41):
             current_time_str = now.strftime("%H:%M")
-            if now.minute % 10 == 0 and last_dashboard_check != current_time_str:
+            if now.minute % 10 == 1 and last_dashboard_check != current_time_str:
                 display_asset_dashboard()
                 last_dashboard_check = current_time_str
 
