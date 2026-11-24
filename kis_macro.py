@@ -182,25 +182,6 @@ def fetch_access_token():
         return False
 
 
-def issue_hashkey(body):
-    """ [해시키] 주문 바디 위변조 방지용 해시키 발급 """
-    url = f"{BASE_URL}/uapi/hashkey"
-    headers = {
-        "Content-Type": "application/json",
-        "appkey": APP_KEY,
-        "appsecret": APP_SECRET
-    }
-    try:
-        response = kis_request("POST", url, json=body, headers=headers, timeout=5)
-        if response.status_code == 200:
-            return response.json().get("HASH")
-        print(f"⚠️ [해시키 발급 실패] HTTP {response.status_code}: {response.text}")
-        return None
-    except Exception as e:
-        print(f"⚠️ [해시키 발급 예외] {e}")
-        return None
-
-
 def format_currency(value):
     """ 금액 콤마 포맷팅 """
     try:
@@ -612,11 +593,6 @@ def send_kis_limit_order(stock_code, side, quantity, current_price):
         "ORD_UNPR": str(int(target_limit_price))
     }
 
-    hashkey = issue_hashkey(body)
-    if not hashkey:
-        print(f"❌ [{stock_code} 주문 실패] 해시키 발급 실패로 주문을 중단합니다.")
-        return
-
     url = f"{BASE_URL}/uapi/domestic-stock/v1/trading/order-cash"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -624,7 +600,6 @@ def send_kis_limit_order(stock_code, side, quantity, current_price):
         "appsecret": APP_SECRET,
         "tr_id": tr_id,
         "custtype": "P",
-        "hashkey": hashkey,
         "Content-Type": "application/json"
     }
 
